@@ -4,7 +4,7 @@ window = Tk()
 window.title('calculator')
 window.configure(background='white')
 window.resizable(width=False, height=False)
-window.geometry("490x568+450+90")
+window.geometry("978x555")
 calc = Frame(window)
 calc.grid()
 
@@ -400,30 +400,6 @@ lblDisplay = Label(calc, text="Sci.Calculator",
                    bg='black', fg='white', justify=CENTER)
 
 lblDisplay.grid(row=0, column=4, columnspan=4)
-
-
-
-
-
-def Scientific():
-    window.resizable(width=False, height=False)
-    window.geometry("950x550+0+0")
-
-
-def Standard():
-    window.resizable(width=False, height=False)
-    window.geometry("480x550+0+0")
-
-menubar = Menu()
-
-filemenu = Menu(menubar, tearoff=0)
-menubar.add_cascade(label='Option', menu=filemenu)
-filemenu.add_command(label="Standard", command=Standard)
-filemenu.add_command(label="Scientific", command=Scientific)
-
-window.config(menu=menubar)
-
-
 
 window.mainloop()
 
