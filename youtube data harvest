@@ -367,8 +367,8 @@ if Migrate or st.session_state_migrate_sql:
 # Connect to the MySQL server
     connect = mysql.connector.connect(
     host = "localhost",
-    user = "root",
-    password = "root",
+    user = "soorya",
+    password = "Soorya@1997",
     auth_plugin = "mysql_native_password")
 # Create a new database and use
     mycursor = connect.cursor()
