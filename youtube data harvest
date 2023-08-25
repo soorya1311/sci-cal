@@ -368,14 +368,14 @@ if Migrate or st.session_state_migrate_sql:
     connect = mysql.connector.connect(
     host = "localhost",
     user = "root",
-    password = "Soorya@1997",
+    password = "YOURPASSWORD",
     auth_plugin = "mysql_native_password")
 # Create a new database and use
     mycursor = connect.cursor()
     mycursor.execute("CREATE DATABASE IF NOT EXISTS youtube_db")
     mycursor.close()
     connect.close()
-    engine = create_engine('mysql+mysqlconnector://root:root@localhost/youtube_db', echo=False)
+    engine = create_engine('mysql+mysqlconnector://root:YOURPASSWORD@localhost/youtube_db', echo=False)
     channel_df.to_sql('channel', engine, if_exists='append', index=False,
                     dtype = {"Channel_Name": sqlalchemy.types.VARCHAR(length=225),
                               "Channel_Id": sqlalchemy.types.VARCHAR(length=225),
