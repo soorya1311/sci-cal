@@ -1,0 +1,120 @@
+import pandas as pd
+import pymongo
+import streamlit as st
+import plotly.express as px
+
+# Load Airbnb data (replace 'airbnb_data.csv' with your dataset)
+@st.cache
+def load_data():
+    data = pd.read_csv('airbnb_data.csv')
+    return data
+
+data = load_data()
+
+# Connect to MongoDB
+client = pymongo.MongoClient("mongodb://localhost:27017/")  # Replace with your MongoDB connection URL
+db = client['airbnb_db']  # Replace with your database name
+collection = db['airbnb_collection']  # Replace with your collection name
+
+# Store data in MongoDB (only if it hasn't been stored before)
+if collection.count_documents({}) == 0:
+    data_dict = data.to_dict(orient='records')
+    collection.insert_many(data_dict)
+
+# Streamlit app
+st.title('Airbnb Data Analysis')
+
+# Sidebar filters
+st.sidebar.header('Filters')
+
+# Filter by neighborhood
+neighborhood = st.sidebar.selectbox('Select Neighborhood', data['neighborhood'].unique())
+filtered_data = data[data['neighborhood'] == neighborhood]
+
+# Filter by room type
+room_type = st.sidebar.selectbox('Select Room Type', data['room_type'].unique())
+filtered_data = filtered_data[filtered_data['room_type'] == room_type]
+
+# Filter by season
+season = st.sidebar.selectbox('Select Season', ['All Seasons'] + data['season'].unique())
+if season != 'All Seasons':
+    filtered_data = filtered_data[filtered_data['season'] == season]
+
+# Display filtered data
+st.write(f"Showing data for {room_type} in {neighborhood} neighborhood, {season} season")
+st.write(filtered_data)
+
+# Data analysis
+st.header('Data Analysis')
+
+# Average price across different locations
+st.subheader('Average Price Across Different Locations')
+fig_location = px.bar(data.groupby('neighborhood')['price'].mean().reset_index(), x='neighborhood', y='price',
+                      title='Average Price Across Different Locations')
+st.plotly_chart(fig_location)
+
+# Average price across different property types
+st.subheader('Average Price Across Different Property Types')
+fig_property_type = px.bar(data.groupby('property_type')['price'].mean().reset_index(), x='property_type', y='price',
+                           title='Average Price Across Different Property Types')
+st.plotly_chart(fig_property_type)
+
+# Price trends over time
+st.subheader('Price Trends Over Time')
+fig_price_trends = px.line(data.groupby(['season', 'room_type'])['price'].mean().reset_index(), x='season', y='price',
+                           color='room_type', title='Price Trends Over Time')
+st.plotly_chart(fig_price_trends)
+
+# Availability and occupancy analysis
+st.header('Availability and Occupancy Analysis')
+
+# Occupancy rate by season
+seasonal_occupancy = filtered_data.groupby('season')['availability_365'].mean().reset_index()
+seasonal_occupancy['occupancy_rate'] = 100 - seasonal_occupancy['availability_365']
+
+st.subheader('Occupancy Rate by Season')
+fig_occupancy = px.bar(seasonal_occupancy, x='season', y='occupancy_rate',
+                       title='Occupancy Rate by Season', labels={'occupancy_rate': 'Occupancy Rate (%)'})
+st.plotly_chart(fig_occupancy)
+
+# Booking patterns throughout the year
+st.subheader('Booking Patterns Throughout the Year')
+booking_patterns = filtered_data.groupby(filtered_data['date'].dt.month)['id'].count().reset_index()
+booking_patterns = booking_patterns.rename(columns={'id': 'bookings'})
+fig_booking_patterns = px.bar(booking_patterns, x='date', y='bookings',
+                               title='Booking Patterns Throughout the Year', labels={'date': 'Month', 'bookings': 'Bookings'})
+st.plotly_chart(fig_booking_patterns)
+
+# Demand fluctuations using a heatmap
+st.subheader('Demand Fluctuations Heatmap')
+demand_heatmap_data = data.groupby([data['date'].dt.month, data['date'].dt.day])['id'].count().reset_index()
+demand_heatmap_data = demand_heatmap_data.rename(columns={'date': 'Month', 'id': 'Bookings'})
+demand_heatmap = pd.pivot_table(demand_heatmap_data, values='Bookings', index='Month', columns='Month')
+fig_demand_heatmap = ff.create_annotated_heatmap(demand_heatmap.values, x=demand_heatmap.columns, y=demand_heatmap.index)
+st.plotly_chart(fig_demand_heatmap)
+
+# MongoDB information
+st.sidebar.header('MongoDB Info')
+
+# Show the number of documents in MongoDB
+num_documents = collection.count_documents({})
+st.sidebar.write(f'Number of documents in MongoDB: {num_documents}')
+
+# Price analysis for specific neighborhood (MongoDB query)
+st.header('Price Analysis for Specific Neighborhood')
+
+# MongoDB query to get price information for the selected neighborhood
+neighborhood_price_data = collection.aggregate([
+    {"$match": {"neighborhood": neighborhood}},
+    {"$group": {"_id": "$room_type", "average_price": {"$avg": "$price"}}}
+])
+
+# Create a DataFrame from the MongoDB aggregation result
+neighborhood_price_df = pd.DataFrame(neighborhood_price_data)
+
+# Display the price analysis for the selected neighborhood
+st.subheader(f'Price Analysis for {neighborhood} Neighborhood')
+st.write(neighborhood_price_df)
+
+# Close MongoDB connection
+client.close()
