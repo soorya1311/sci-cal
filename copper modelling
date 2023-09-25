@@ -1,0 +1,92 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+from sklearn.preprocessing import MinMaxScaler, StandardScale
+
+#-------------------Reading the Data set---------------------------
+  
+df = pd.read_excel('/content/Copper_Set.xlsx')
+df.isnull().sum()
+df = df.drop(['material_ref'],axis=1,inplace=True)
+df = df.drop(['item_date'],axis=1)
+df = df.drop(['delivery date'],axis=1)
+df = df.dropna(subset=['id'])
+df.reset_index(drop=True, inplace=True)
+
+#-------------------Check for outlier in order to fill the nan values-----------------
+
+df1 = df.dropna()
+plt.boxplot(df1['selling_price'])
+
+#use this and check for each column
+
+df['country'].fillna(df['country'].mean(),inplace=True)
+df['customer'].fillna(df['customer'].mean(),inplace=True)
+df['application'].fillna(df['application'].median(),inplace=True)
+df['thickness'].fillna(df['thickness'].median(),inplace=True)
+df['selling_price'].fillna(df['selling_price'].median(),inplace=True)
+
+#-------------------Outlier detection and Removal---------------------------
+
+numerical_columns = ['customer', 'country', 'application', 'thickness', 'selling_price']
+#Using Technique 2(zscore),Technique 1 is IQR
+z_threshold = 3
+for each in numerical_columns:
+    z_scores = stats.zscore(df[each])
+    df = df[(z_scores < z_threshold) & (z_scores > -z_threshold)]
+df.reset_index(drop=True, inplace=True)
+
+#---------------------Check for skewness in order to do log transformation----------------------
+
+plt.hist(df['country'])
+
+#It is found that feature - country and application has lot of skewness and does not follow normal distribution
+#So need to do log transformation
+
+columns_to_transform = ['country', 'application']
+for column in columns_to_transform:
+    df[column] = np.log(df[column])
+#df.to_csv('log_transformed_data.csv', index=False) 
+      
+#--------------------------------------------------Scalling-------------------------------------
+      
+# Find the minimum values for all columns
+min_values = df.min()
+
+# Find the maximum values for all columns
+max_values = df.max()
+
+# Print the results
+print("Minimum values for each column:")
+print(min_values)
+
+print("\nMaximum values for each column:")
+print(max_values)  
+
+#------------------MinMaxScaler------------------
+numerical_columns = ['customer', 'country', 'application', 'thickness', 'selling_price']
+
+# Initialize Min-Max scaler
+min_max_scaler = MinMaxScaler()
+
+# Apply Min-Max scaling to the specified columns
+df[numerical_columns] = min_max_scaler.fit_transform(df[numerical_columns])
+
+# Initialize Standard scaler
+standard_scaler = StandardScaler()
+
+# Apply Standardization to the specified columns
+df[numerical_columns] = standard_scaler.fit_transform(df[numerical_columns])
+
+# Print the DataFrame with scaled and standardized columns
+print("Scaled and Standardized Data:")
+print(df)
+
+#-------------------------------------Correlation--------------------
+
+df_num = df.select_dtypes(include=['float64','int64'])
+df_num.head()
+df_num.hist(bins=20)
+df_corr = df_num.corr()['thickness'][:-1]
+df_corr
