@@ -1,0 +1,162 @@
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+import matplotlib.pyplot as plt
+from scipy import stats
+import seaborn as sns
+
+df = pd.read_csv('/content/Influencer.csv')
+df
+df.isnull().sum()
+df.dtypes
+df['Country Or Region'].fillna(df['Country Or Region'].mode())
+unique_values = df['Country Or Region'].unique()
+print(unique_values)
+
+#-------------------------Encoding/Changing values------------
+
+# Correct encoding issues and replace non-standard characters
+df['Country Or Region'] = df['Country Or Region'].str.encode('latin-1').str.decode('utf-8')
+
+# Remove leading and trailing white spaces
+df['Country Or Region'] = df['Country Or Region'].str.strip()
+
+# Check for missing values again
+missing_values = df['Country Or Region'].isna().sum()
+print("Number of missing values after cleaning:", missing_values)
+
+# Fill missing values with the mode
+df['Country Or Region'].fillna(df['Country Or Region'].mode()[0], inplace=True)
+
+df['Followers'].replace({'m': ''}, regex=True, inplace=True)
+df['Followers'] = df['Followers'].astype(float) * 1000000
+
+df['Posts'].replace({'k': ''}, regex=True, inplace=True)
+df['Posts'] = df['Posts'].astype(float) * 1000
+
+#-------------------------Label Encoding----------
+# Specify the columns you want to label encode
+columns_to_encode = ['Channel Info', 'Avg. Likes', 'New Post Avg. Likes', 'Total Likes', 'Country Or Region']
+
+# columns_to_encode = ['Avg. Likes', 'New Post Avg. Likes', 'Total Likes']
+
+# Initialize the LabelEncoder
+label_encoder = LabelEncoder()
+
+# Apply label encoding to the specified columns
+for column in columns_to_encode:
+    df[column] = label_encoder.fit_transform(df[column])
+
+# Print the updated DataFrame with label encoding
+print(df)
+
+#----------------------------outlier detection and handling------------------
+
+df1 = df.dropna()
+plt.boxplot(df1['Influence Score'])
+
+numerical_columns = ['Influence Score', 'Followers', 'Avg. Likes', 'Posts', 'New Post Avg. Likes', 'Total Likes', '60-Day Eng Rate']
+#Using Technique 2(zscore),Technique 1 is IQR
+z_threshold = 3
+for each in numerical_columns:
+    z_scores = stats.zscore(df[each])
+    df = df[(z_scores < z_threshold) & (z_scores > -z_threshold)]
+df.reset_index(drop=True, inplace=True)
+
+sns.pairplot(df)
+
+# -------------------Correlation matrix--------------------
+
+correlation_matrix = df.corr()
+plt.figure(figsize=(10, 8))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f')
+plt.title('Correlation Matrix')
+plt.show()
+
+
+#--------------------Answering 5 questions ---------------------------
+#-------------------------Question 1:----------------------------------
+highly_correlated_pairs = []
+
+# Set a threshold for what you consider "highly correlated"
+correlation_threshold = 0.8
+
+# Loop through the correlation matrix to find highly correlated pairs
+for i in range(len(correlation_matrix.columns)):
+    for j in range(i):
+        if abs(correlation_matrix.iloc[i, j]) > correlation_threshold:
+            feature_i = correlation_matrix.columns[i]
+            feature_j = correlation_matrix.columns[j]
+            correlation_coefficient = correlation_matrix.iloc[i, j]
+            highly_correlated_pairs.append((feature_i, feature_j, correlation_coefficient))
+
+# Print highly correlated pairs
+if len(highly_correlated_pairs) > 0:
+    print("Highly correlated feature pairs:")
+    for pair in highly_correlated_pairs:
+        print(f"{pair[0]} and {pair[1]} (Correlation Coefficient: {pair[2]})")
+else:
+    print("No highly correlated features found.")
+
+
+Highly correlated feature pairs:
+Followers and Rank (Correlation Coefficient: -0.7347412891458794)
+
+#---------------------------Question 2:---------------------------------------------
+
+influence_score_distribution = df['Influence Score'].value_counts()
+print(influence_score_distribution)
+
+#--------------------------Question 3:----------------------------------------------
+# Group the DataFrame by 'Country' and count the number of influencers in each country
+country_counts = df['Country Or Region'].value_counts()
+
+# Get the country with the highest count
+top_country = country_counts.idxmax()
+
+# Create a bar chart to visualize the count of influencers in different countries
+plt.figure(figsize=(12, 6))
+country_counts.plot(kind='bar')
+plt.title('Count of Instagram Influencers by Country Or Region')
+plt.xlabel('Country Or Region')
+plt.ylabel('Count')
+plt.xticks(rotation=90)
+plt.tight_layout()
+plt.show()
+
+# Print the country with the highest count
+print(f"The country with the highest number of Instagram influencers is {top_country} with {country_counts[top_country]} influencers.")
+
+The country with the highest number of Instagram influencers is 23 with 91 influencers.
+
+
+#-------------------------------------Question:4------------------------------------------
+
+top_followers = df.sort_values(by='Followers', ascending=False).head(10)
+print(top_followers)
+
+#-------------------------------------Question:5------------------------------------------
+
+plt.scatter(df['Followers'], df['Influence Score'])
+plt.xlabel('Followers')
+plt.ylabel('Influence Score')
+plt.title('Scatter Plot: Followers vs Influence Score')
+plt.show()
+
+plt.scatter(df['Followers'], df['Total Likes'])
+plt.xlabel('Followers')
+plt.ylabel('Total Likes')
+plt.title('Scatter Plot: Followers vs Total Likes')
+plt.show()
+
+plt.scatter(df['Posts'], df['Avg. Likes'])
+plt.xlabel('Posts')
+plt.ylabel('Avg. Likes')
+plt.title('Scatter Plot: Posts vs Avg. Likes')
+plt.show()
+
+plt.scatter(df['Posts'], df['Influence Score'])
+plt.xlabel('Posts')
+plt.ylabel('Influence Score')
+plt.title('Scatter Plot: Posts vs Influence Score')
+plt.show()
+
