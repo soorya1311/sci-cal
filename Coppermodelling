@@ -1,19 +1,30 @@
+import pandas as pd
+import numpy as np
+import pickle
+import streamlit as st
+# import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
-import pandas as pd
+import seaborn as sns
+import sklearn
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.preprocessing import StandardScaler, OneHotEncoder,LabelBinarizer
+from sklearn.metrics import confusion_matrix, classification_report
 
 
 
-df = pd.read_csv('/content/Copper_Set.xlsx - Result 1.csv')
-df.head(2)
-print(len(df['item_date'].unique())) 
-print(len(df['customer'].unique())) 
-print(len(df['material_ref'].unique()))
-print(len(df['product_ref'].unique())) 
-print(len(df['delivery date'].unique()))
-df.shape
-df.info()
-df.isnull().sum()
+
+
+df = pd.read_csv('C:\\Users\\USER\\OneDrive\\Desktop\\Copper_Set.xlsx - Result 1.csv')
+
 df['item_date'] = pd.to_datetime(df['item_date'], format='%Y%m%d', errors='coerce').dt.date
 df['quantity tons'] = pd.to_numeric(df['quantity tons'], errors='coerce')
 df['customer'] = pd.to_numeric(df['customer'], errors='coerce')
@@ -25,71 +36,39 @@ df['material_ref'] = df['material_ref'].str.lstrip('0')
 df['product_ref'] = pd.to_numeric(df['product_ref'], errors='coerce')
 df['delivery date'] = pd.to_datetime(df['delivery date'], format='%Y%m%d', errors='coerce').dt.date
 df['selling_price'] = pd.to_numeric(df['selling_price'], errors='coerce')
-# material_ref has large set of null values, so replacing them with unknown 
+# material_ref has large set of null values, so replacing them with unknown
 df['material_ref'].fillna('unknown', inplace=True)
 # deleting the remaining null values as they are less than 1% of data which can be neglected
 df = df.dropna()
 df_p=df.copy()
 
-#--------------------------------Finding Skewness--------------------------------
-
-import pandas as pd
-from scipy.stats import skew
-
-data = pd.read_csv('/content/Copper_Set.xlsx - Result 1.csv')  # Load your data from a CSV file or another source
-
-# Iterate through the columns and calculate skewness for each numeric column
-for column_name in data.columns:
-    if pd.api.types.is_numeric_dtype(data[column_name]):
-        skewness = skew(data[column_name])
-        print(f"Skewness for '{column_name}': {skewness}")
-    else:
-        print(f"'{column_name}' is not numeric data and cannot calculate skewness.")
-
-#--------------------------------Masking-----------------------------------------------
-
-import numpy as np
 mask1 = df_p['selling_price'] <= 0
-print(mask1.sum())
+# print(mask1.sum())
 df_p.loc[mask1, 'selling_price'] = np.nan
 
 mask1 = df_p['quantity tons'] <= 0
-print(mask1.sum())
+# print(mask1.sum())
 df_p.loc[mask1, 'quantity tons'] = np.nan
 
 mask1 = df_p['thickness'] <= 0
-print(mask1.sum())
-
-#-----------------------------Log Transformation-------------------------------------------
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+# print(mask1.sum())
+df_p.dropna(inplace=True)
 df_p['selling_price_log'] = np.log(df_p['selling_price'])
-sns.distplot(df_p['selling_price_log'])
-plt.show()
-
+# sns.distplot(df_p['selling_price_log'])
+# plt.show()
+#
 df_p['quantity tons_log'] = np.log(df_p['quantity tons'])
-sns.distplot(df_p['quantity tons_log'])
-plt.show()
-
+# sns.distplot(df_p['quantity tons_log'])
+# plt.show()
+#
 df_p['thickness_log'] = np.log(df_p['thickness'])
-sns.distplot(df_p['thickness_log'])
-plt.show()
+# sns.distplot(df_p['thickness_log'])
+# plt.show()
 
-#-----------------------------Correlation----------------------------------------------
 numerical_columns = df_p[['quantity tons_log','application','thickness_log','width','selling_price_log','country','customer','product_ref']].corr()
 sns.heatmap(numerical_columns, annot=True, cmap="YlGnBu")
 
-#----------------------------Regression Model-----------------------------------
-
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import mean_squared_error, r2_score
+#REGRESSION MODEL
 
 X=df_p[['quantity tons_log','status','item type','application','thickness_log','width','country','customer','product_ref']]
 y=df_p['selling_price_log']
@@ -106,8 +85,6 @@ scaler = StandardScaler()
 X = scaler.fit_transform(X)
 # test and train split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42)
-# decision tree
-dtr = DecisionTreeRegressor()
 
 # Create and train a Decision Tree Regressor with hyperparameters
 dtr = DecisionTreeRegressor(max_depth=5, min_samples_split=2, min_samples_leaf=1)
@@ -133,13 +110,20 @@ new_sample1 = scaler.transform(new_sample)
 new_pred = dtr.predict(new_sample1)
 print('Predicted selling price:', np.exp(new_pred))
 
-#------------------------------Classification Model---------------------------
+# Saving the model
 
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, confusion_matrix
-from sklearn.preprocessing import StandardScaler, OneHotEncoder,LabelBinarizer
+with open('model.pkl', 'wb') as file:
+    pickle.dump(dtr, file)
+with open('scaler.pkl', 'wb') as f:
+    pickle.dump(scaler, f)
+with open('t.pkl', 'wb') as f:
+    pickle.dump(ohe, f)
+with open('s.pkl', 'wb') as f:
+    pickle.dump(ohe2, f)
 
+
+df_c = df_p[df_p['status'].isin(['Won', 'Lost'])]
+#CLASSIFICATION MODEL
 Y = df_c['status']
 X= df_c[['quantity tons_log','selling_price_log','item type','application','thickness_log','width','country','customer','product_ref']]
 
@@ -148,7 +132,7 @@ ohe = OneHotEncoder(handle_unknown='ignore')
 ohe.fit(X[['item type']])
 X_ohe = ohe.fit_transform(X[['item type']]).toarray()
 be = LabelBinarizer()
-be.fit(Y) 
+be.fit(Y)
 y = be.fit_transform(Y)
 # independent features after encoding
 X = np.concatenate((X[['quantity tons_log', 'selling_price_log','application', 'thickness_log', 'width','country','customer','product_ref']].values, X_ohe), axis=1)
@@ -165,10 +149,6 @@ accuracy = accuracy_score(y_test, y_pred)
 print(f"Accuracy: {accuracy}")
 cm = confusion_matrix(y_test, y_pred)
 print(f"Confusion Matrix:\n{cm}")
-
-# Evalution Metrics
-from sklearn.metrics import confusion_matrix, classification_report, roc_curve, auc
-import matplotlib.pyplot as plt
 print("Confusion Matrix:")
 print(confusion_matrix(y_test, y_pred))
 print("Classification Report:")
@@ -186,3 +166,70 @@ if new_pred==1:
 else:
     print('The status is: Lost')
 
+# Saving the model
+with open('cmodel.pkl', 'wb') as file:
+    pickle.dump(dtc, file)
+with open('cscaler.pkl', 'wb') as f:
+    pickle.dump(scaler, f)
+with open('ct.pkl', 'wb') as f:
+    pickle.dump(ohe, f)
+
+# Load the trained models and scalers
+with open('model.pkl', 'rb') as file:
+    selling_price_model = pickle.load(file)
+with open('scaler.pkl', 'rb') as file:
+    selling_price_scaler = pickle.load(file)
+with open('cmodel.pkl', 'rb') as file:
+    status_model = pickle.load(file)
+with open('cscaler.pkl', 'rb') as file:
+    status_scaler = pickle.load(file)
+
+# Create a Streamlit web app
+
+st.title('Copper Price Prediction and Status Classification')
+
+# Input features for selling price prediction
+st.sidebar.header('Selling Price Prediction')
+quantity_tons = st.sidebar.number_input('Quantity (tons)', min_value=0.1)
+application = st.sidebar.selectbox('Application', ['Application A', 'Application B'])
+thickness_log = st.sidebar.number_input('Thickness (log)', min_value=0.0)
+width = st.sidebar.number_input('Width', min_value=0.1)
+country = st.sidebar.selectbox('Country', ['Country A', 'Country B'])
+customer = st.sidebar.number_input('Customer ID', min_value=1)
+product_ref = st.sidebar.number_input('Product Reference', min_value=1)
+
+# Input features for status classification
+st.sidebar.header('Status Classification')
+quantity_tons_log = st.sidebar.number_input('Quantity (tons, log)', min_value=0.1)
+selling_price_log = st.sidebar.number_input('Selling Price (log)', min_value=0.1)
+
+# Button to make predictions
+if st.sidebar.button('Predict'):
+    # Prepare input data for selling price prediction
+    selling_price_input = np.array([[np.log(quantity_tons), application, np.log(thickness_log), width, country, customer, product_ref]])
+    selling_price_input = np.concatenate((selling_price_input[:, [0, 2, 3, 4, 5, 6]], selling_price_scaler.transform(selling_price_input[:, [1]])), axis=1)
+
+    # Make the selling price prediction
+    selling_price_prediction = np.exp(selling_price_model.predict(selling_price_input))
+
+    # Display the predicted selling price
+    st.subheader('Selling Price Prediction')
+    st.write(f'Predicted Selling Price: {selling_price_prediction[0]:.2f}')
+
+    # Prepare input data for status classification
+    status_input = np.array([[quantity_tons_log, selling_price_log, application, np.log(thickness_log), width, country, customer, product_ref]])
+    status_input = np.concatenate((status_input[:, [0, 1, 3, 4, 5, 6, 7]], status_scaler.transform(status_input[:, [2]])), axis=1)
+
+    # Make the status classification prediction
+    status_prediction = status_model.predict(status_input)
+
+    # Decode the status prediction
+    status_label = 'Won' if status_prediction == 1 else 'Lost'
+
+    # Display the predicted status
+    st.subheader('Status Classification')
+    st.write(f'Predicted Status: {status_label}')
+
+# Information about the app
+st.sidebar.header('About')
+st.sidebar.info('This app predicts the selling price and status based on input features.')
